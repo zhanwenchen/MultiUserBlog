@@ -1,0 +1,25 @@
+<div class="post">
+  <div class="post-heading">
+    <div class="post-title">
+      <a class="blog-link" href="/blog/{{p.key().id()}}">{{p.subject}}</a>
+    </div>
+
+    <div class="post-date">
+      {{p.created.strftime("%b %d, %Y")}}
+    </div>
+  </div>
+
+  <div class="post-content">
+    {{p._render_text | safe}}
+  </div>
+
+  <div class="likes">
+    <form action="/blog/{{p.key().id()}}/like" method="post"><input type="submit" value="{{p.likes}} likes"></form>
+  </div>
+
+  <div class="edit">
+    <a class="blog-link" href="/blog/newpost">edit</a>
+  </div>
+
+  <div class="error">{{error}}</div>
+</div>
