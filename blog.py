@@ -129,6 +129,7 @@ class Post(db.Model):
     last_modified = db.DateTimeProperty(auto_now = True)
     likes = db.IntegerProperty(default=0)
     username = db.StringProperty()
+    like_error = db.BooleanProperty(default=False)
 
     ## Post instance methods
     def render(self):
@@ -140,6 +141,14 @@ class Post(db.Model):
     def incrementLikes(self):
         self.likes += 1
         self.put()
+
+    def toggleLikeError(self):
+        if self.like_error:
+            self.like_error = False
+            self.put()
+        else:
+            self.like_error = True
+            self.put()
 
 class BlogFront(BlogHandler):
     def get(self):
@@ -157,7 +166,7 @@ class PostPage(BlogHandler):
 
         self.render("permalink.html", post = post)
 
-class PostLike(BlogHandler):
+class LikeHandler(BlogHandler):
 
     def get(self, post_id):
         self.redirect(self.request.referer)
@@ -170,19 +179,32 @@ class PostLike(BlogHandler):
         # Prompt user to login before liking
         if (not self.user):
             self.redirect("/login")
+
+        # User likes own post
         elif (post.username == self.user.name):
-            error = "You cannot like your own posts"
-            self.redirect(self.request.referer + "?error=%s&post=%s" % (error, post_id))
-            print "Here's the request: -------\n %s \n---------" % self.request
-            # if (self.request.referer == '/blog'):
-                # self.render
+            print 'in elif!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n'
+            print 'about to toggle, now post.error = %s\n\n\n' % post.like_error
+            post.toggleLikeError()
+            print 'just toggled, now post.error = %s\n\n\n' % post.like_error
+            self.redirect(self.request.referer)
+            print 'about to toggle, now post.error = %s\n\n\n' % post.like_error
+            post.toggleLikeError()
+            print 'just toggled, now post.error = %s\n\n\n' % post.like_error
         else:
             post.incrementLikes()
             self.redirect(self.request.referer)
-
         if not post:
             self.error(404)
             return
+class EditHandler(BlogHandler):
+    def get(self, post_id):
+        if self.user:
+            self.render("newpost.html")
+        else:
+            self.redirect("/login")
+
+class CommentHandler(BlogHandler):
+    pass
 
 class NewPost(BlogHandler):
     def get(self):
@@ -295,7 +317,9 @@ class Logout(BlogHandler):
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/blog/?', BlogFront),
                                ('/blog/([0-9]+)', PostPage),
-                               ('/blog/([0-9]+)/like', PostLike),
+                               ('/blog/([0-9]+)/like', LikeHandler),
+                               ('/blog/([0-9]+)/edit', EditHandler),
+                               ('/blog/([0-9]+)/comment', CommentHandler),
                                ('/blog/newpost', NewPost),
                                ('/signup', Register),
                                ('/login', Login),

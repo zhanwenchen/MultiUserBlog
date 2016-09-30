@@ -18,8 +18,16 @@
   </div>
 
   <div class="edit">
-    <a class="blog-link" href="/blog/newpost">edit</a>
+    <form action="/blog/{{p.key().id()}}/edit" method="get"><input type="submit" value="edit/delete"></form>
   </div>
 
-  <div class="error">{{error}}</div>
+  <div class="comment">
+    <form action="/blog/{{p.key().id()}}/comment" method="post"><input type="submit" value="comment"></form>
+  </div>
+
+  {% if p.like_error %}
+  <div class="error">You can't like your own posts</div>
+  {% endif %}
+
+  <div class="error">{{p.like_error}}</div>
 </div>
