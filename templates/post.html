@@ -18,7 +18,7 @@
   </div>
 
   <div class="edit">
-    <form action="/blog/{{p.key().id()}}/edit" method="get"><input type="submit" value="edit/delete"></form>
+    <form action="/blog/{{p.key().id()}}/edit" method="get"><input type="submit" value="edit"></form>
   </div>
 
   <div class="comment">
@@ -27,5 +27,9 @@
 
   {% if p.like_error %}
   <div class="error">You can't like your own posts</div>
+  {% endif %}
+
+  {% if p.edit_error %}
+  <div class="error">You can only edit/delete your own posts</div>
   {% endif %}
 </div>

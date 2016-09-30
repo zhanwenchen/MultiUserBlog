@@ -154,6 +154,8 @@ class Post(db.Model):
         else:
             self.edit_error = True
             self.put()
+    def deletePost(self):
+        self.delete()
 
 class Comment(Post, db.Model):
     post = db.ReferenceProperty(Post,
@@ -206,10 +208,9 @@ class EditHandler(BlogHandler):
         key = db.Key.from_path('Post', int(post_id), parent=blog_key())
         post = db.get(key)
         # User edits/deletes own post
-        if (self.user.name is post.username):
-
+        if (self.user.name == post.username):
             # render a newpost-like page with pre-populated fields
-            self.render("edit.html", subject=post.subject, content=post.content)
+            self.render("edit.html", p = post, subject=post.subject, content=post.content)
 
         # User edits/deletes others' post
         else:
@@ -220,14 +221,15 @@ class EditHandler(BlogHandler):
     def post(self, post_id):
         key = db.Key.from_path('Post', int(post_id), parent=blog_key())
         post = db.get(key)
-
         subject = self.request.get('subject')
         content = self.request.get('content')
-
         # Validate for subject and content
         if subject and content:
+            post.subject = subject
+            post.content = content
             post.put() # put post back into the db
-            self.redirect('/blog/%s' % str(post.key().id())) # go to permalink
+            self.redirect(self.request.referer) # go to permalink
+        # No subject or content
         else:
             error = "subject and content, please!"
             self.render("edit.html", subject=subject, content=content, error=error)
@@ -236,7 +238,22 @@ class CommentHandler(BlogHandler):
     pass
 
 class DeleteHandler(BlogHandler):
-    pass
+    def post(self, post_id):
+        key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+        post = db.get(key)
+
+        # User edits/deletes own post
+        if (self.user.name == post.username):
+            # render a newpost-like page with pre-populated fields
+            print '\n\n\n' + str(key) + '\n\n\n'
+            post.deletePost()
+            self.redirect('/blog')
+
+        # User edits/deletes others' post
+        else:
+            post.toggleEditError()
+            self.redirect(self.request.referer)
+            post.toggleEditError()
 
 class NewPost(BlogHandler):
     def get(self):
