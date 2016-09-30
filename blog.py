@@ -69,7 +69,6 @@ class MainPage(BlogHandler):
   def get(self):
       self.write('Hello, Udacity!')
 
-
 ##### user stuff
 def make_salt(length = 5):
     return ''.join(random.choice(letters) for x in xrange(length))
@@ -115,7 +114,6 @@ class User(db.Model):
         if u and valid_pw(name, pw, u.pw_hash):
             return u
 
-
 ##### blog stuff
 
 def blog_key(name = 'default'):
@@ -130,12 +128,12 @@ class Post(db.Model):
     likes = db.IntegerProperty(default=0)
     username = db.StringProperty()
     like_error = db.BooleanProperty(default=False)
+    edit_error = db.BooleanProperty(default=False)
 
     ## Post instance methods
     def render(self):
         ## Local variables to each post
         self._render_text = self.content.replace('\n', '<br>')
-        self.error = "you cannot like your own posts"
         return render_str("post.html", p = self)
 
     def incrementLikes(self):
@@ -143,12 +141,23 @@ class Post(db.Model):
         self.put()
 
     def toggleLikeError(self):
-        if self.like_error:
+        if (self.like_error is True):
             self.like_error = False
             self.put()
         else:
             self.like_error = True
             self.put()
+    def toggleEditError(self):
+        if (self.edit_error is True):
+            self.edit_error = False
+            self.put()
+        else:
+            self.edit_error = True
+            self.put()
+
+class Comment(Post, db.Model):
+    post = db.ReferenceProperty(Post,
+                                   collection_name='comments')
 
 class BlogFront(BlogHandler):
     def get(self):
@@ -182,28 +191,51 @@ class LikeHandler(BlogHandler):
 
         # User likes own post
         elif (post.username == self.user.name):
-            print 'in elif!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n'
-            print 'about to toggle, now post.error = %s\n\n\n' % post.like_error
             post.toggleLikeError()
-            print 'just toggled, now post.error = %s\n\n\n' % post.like_error
             self.redirect(self.request.referer)
-            print 'about to toggle, now post.error = %s\n\n\n' % post.like_error
             post.toggleLikeError()
-            print 'just toggled, now post.error = %s\n\n\n' % post.like_error
         else:
             post.incrementLikes()
             self.redirect(self.request.referer)
         if not post:
             self.error(404)
             return
+
 class EditHandler(BlogHandler):
     def get(self, post_id):
-        if self.user:
-            self.render("newpost.html")
+        key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+        post = db.get(key)
+        # User edits/deletes own post
+        if (self.user.name is post.username):
+
+            # render a newpost-like page with pre-populated fields
+            self.render("edit.html", subject=post.subject, content=post.content)
+
+        # User edits/deletes others' post
         else:
-            self.redirect("/login")
+            post.toggleEditError()
+            self.redirect(self.request.referer)
+            post.toggleEditError()
+
+    def post(self, post_id):
+        key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+        post = db.get(key)
+
+        subject = self.request.get('subject')
+        content = self.request.get('content')
+
+        # Validate for subject and content
+        if subject and content:
+            post.put() # put post back into the db
+            self.redirect('/blog/%s' % str(post.key().id())) # go to permalink
+        else:
+            error = "subject and content, please!"
+            self.render("edit.html", subject=subject, content=content, error=error)
 
 class CommentHandler(BlogHandler):
+    pass
+
+class DeleteHandler(BlogHandler):
     pass
 
 class NewPost(BlogHandler):
@@ -227,7 +259,6 @@ class NewPost(BlogHandler):
         else:
             error = "subject and content, please!"
             self.render("newpost.html", subject=subject, content=content, error=error)
-
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
@@ -278,7 +309,6 @@ class Signup(BlogHandler):
     def done(self, *a, **kw):
         raise NotImplementedError
 
-
 class Register(Signup):
     def done(self):
         #make sure the user doesn't already exist
@@ -319,6 +349,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
                                ('/blog/([0-9]+)', PostPage),
                                ('/blog/([0-9]+)/like', LikeHandler),
                                ('/blog/([0-9]+)/edit', EditHandler),
+                               ('/blog/([0-9]+)/delete', DeleteHandler),
                                ('/blog/([0-9]+)/comment', CommentHandler),
                                ('/blog/newpost', NewPost),
                                ('/signup', Register),

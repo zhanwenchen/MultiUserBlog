@@ -22,12 +22,10 @@
   </div>
 
   <div class="comment">
-    <form action="/blog/{{p.key().id()}}/comment" method="post"><input type="submit" value="comment"></form>
+    <form action="/blog/{{p.key().id()}}/comment" method="edit"><input type="submit" value="comment"></form>
   </div>
 
   {% if p.like_error %}
   <div class="error">You can't like your own posts</div>
   {% endif %}
-
-  <div class="error">{{p.like_error}}</div>
 </div>
