@@ -1,3 +1,19 @@
+####################################################################
+## blog.py
+####################################################################
+## A blog that allows user profiles, posting, editing, commenting, and liking
+## Using the Google Cloud Platform
+##
+## Author: Zhanwen "Phil" Chen (phil@zhanwenchen.com)
+## TODO:
+## 1. Add button for new post for logged-in users
+## 2. Allow for likes on Posts
+## 3. Allow for edits on Posts
+## 4. Allow for comments on Posts
+## 5. Allow for likes on comments
+## 6. Allow for edits on comments
+## 7. Add signup in login
+
 import os
 import re
 import random
@@ -34,36 +50,82 @@ def check_secure_val(secure_val):
 def make_salt(length = 5):
     return ''.join(random.choice(letters) for x in xrange(length))
 
-def make_pw_hash(name, pw, salt = None):
+def make_password_hash(name, password, salt = None):
     if not salt:
         salt = make_salt()
-    h = hashlib.sha256(name + pw + salt).hexdigest()
+    h = hashlib.sha256(name + password + salt).hexdigest()
     return '%s,%s' % (salt, h)
 
-def valid_pw(name, password, h):
+def validate_password(name, password, h):
     salt = h.split(',')[0]
-    return h == make_pw_hash(name, password, salt)
+    return h == make_password_hash(name, password, salt)
 
+####################################################################
+## USERS, POSTS and COMMENTS
+####################################################################
+
+## User methods and classes
+
+# method to get key????
 def users_key(group = 'default'):
     return db.Key.from_path('users', group)
 
-####################################################################
-## POSTS and COMMENTS
-####################################################################
+# validate existence and character composition of username
+USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+def valid_username(username):
+    return username and USER_RE.match(username)
+
+PASS_RE = re.compile(r"^.{3,20}$")
+def valid_password(password):
+    return password and PASS_RE.match(password)
+
+EMAIL_RE  = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
+def valid_email(email):
+    return not email or EMAIL_RE.match(email)
+
+class User(db.Model):
+    name = db.StringProperty(required = True)
+    password_hash = db.StringProperty(required = True)
+    email = db.StringProperty()
+
+    @classmethod
+    def by_id(cls, uid):
+        return User.get_by_id(uid, parent = users_key())
+
+    @classmethod
+    def by_name(cls, name):
+        u = User.all().filter('name =', name).get()
+        return u
+
+    @classmethod
+    def register(cls, name, password, email = None):
+        password_hash = make_password_hash(name, password)
+        return User(parent = users_key(),
+                    name = name,
+                    password_hash = password_hash,
+                    email = email)
+
+    @classmethod
+    def login(cls, name, password):
+        u = cls.by_name(name)
+        if u and validate_password(name, password, u.password_hash):
+            return u
+
 
 ##### blog stuff
-
 def blog_key(name = 'default'):
     return db.Key.from_path('blogs', name)
 
 ##### The Post Class is a database
 class Post(db.Model):
+
+    ## Specify data attributes for a Post
     subject = db.StringProperty(required = True)
     content = db.TextProperty(required = True)
     created = db.DateTimeProperty(auto_now_add = True)
     last_modified = db.DateTimeProperty(auto_now = True)
     likes = db.IntegerProperty(default=0)
-    username = db.StringProperty()
+    author = db.StringProperty()
     like_error = db.BooleanProperty(default=False)
     edit_error = db.BooleanProperty(default=False)
 
@@ -97,17 +159,12 @@ class Post(db.Model):
 class Comment(Post, db.Model):
     post = db.ReferenceProperty(Post, collection_name='comments')
 
-USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
-def valid_username(username):
-    return username and USER_RE.match(username)
+class LikeUsers(db.Model):
+    post = db.ReferenceProperty(Post, collection_name='like_users')
+    # user = db.ReferenceProperty(User, collection_name='like_users')
 
-PASS_RE = re.compile(r"^.{3,20}$")
-def valid_password(password):
-    return password and PASS_RE.match(password)
 
-EMAIL_RE  = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
-def valid_email(email):
-    return not email or EMAIL_RE.match(email)
+
 
 ####################################################################
 ## HANDLERS
@@ -153,33 +210,7 @@ class MainPage(BlogHandler):
   def get(self):
       self.write('Hello, Udacity!')
 
-class User(db.Model):
-    name = db.StringProperty(required = True)
-    pw_hash = db.StringProperty(required = True)
-    email = db.StringProperty()
 
-    @classmethod
-    def by_id(cls, uid):
-        return User.get_by_id(uid, parent = users_key())
-
-    @classmethod
-    def by_name(cls, name):
-        u = User.all().filter('name =', name).get()
-        return u
-
-    @classmethod
-    def register(cls, name, pw, email = None):
-        pw_hash = make_pw_hash(name, pw)
-        return User(parent = users_key(),
-                    name = name,
-                    pw_hash = pw_hash,
-                    email = email)
-
-    @classmethod
-    def login(cls, name, pw):
-        u = cls.by_name(name)
-        if u and valid_pw(name, pw, u.pw_hash):
-            return u
 
 class BlogFront(BlogHandler):
     def get(self):
@@ -212,7 +243,7 @@ class LikeHandler(BlogHandler):
             self.redirect("/login")
 
         # User likes own post
-        elif (post.username == self.user.name):
+        elif post.username == self.user.name:
             post.toggleLikeError()
             self.redirect(self.request.referer)
             post.toggleLikeError()
@@ -228,7 +259,7 @@ class EditHandler(BlogHandler):
         key = db.Key.from_path('Post', int(post_id), parent=blog_key())
         post = db.get(key)
         # User edits/deletes own post
-        if (self.user.name == post.username):
+        if (self.user.name == post.author):
             # render a newpost-like page with pre-populated fields
             self.render("edit.html", p = post, subject=post.subject, content=post.content)
 
@@ -263,7 +294,7 @@ class DeleteHandler(BlogHandler):
         post = db.get(key)
 
         # User edits/deletes own post
-        if (self.user.name == post.username):
+        if (self.user.name == post.author):
             # render a newpost-like page with pre-populated fields
             print '\n\n\n' + str(key) + '\n\n\n'
             post.deletePost()
@@ -290,7 +321,7 @@ class NewPost(BlogHandler):
         content = self.request.get('content')
 
         if subject and content:
-            p = Post(parent = blog_key(), subject = subject, content = content, username = self.user.name)
+            p = Post(parent = blog_key(), subject = subject, content = content, author = self.user.name)
             p.put() # put p into db
             self.redirect('/blog/%s' % str(p.key().id()))
         else:
@@ -369,7 +400,7 @@ class Logout(BlogHandler):
         self.logout()
         self.redirect('/blog')
 
-app = webapp2.WSGIApplication([('/', MainPage),
+app = webapp2.WSGIApplication([('/', BlogFront),
                                ('/blog/?', BlogFront),
                                ('/blog/([0-9]+)', PostPage),
                                ('/blog/([0-9]+)/like', LikeHandler),
