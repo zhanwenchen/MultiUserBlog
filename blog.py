@@ -66,7 +66,7 @@ def validate_password(name, password, h):
 
 ## User methods and classes
 
-# method to get key????
+# Establish a new db for blogs
 def users_key(group = 'default'):
     return db.Key.from_path('users', group)
 
@@ -112,7 +112,7 @@ class User(db.Model):
             return u
 
 
-##### blog stuff
+# Establish a new db for blogs
 def blog_key(name = 'default'):
     return db.Key.from_path('blogs', name)
 
@@ -157,14 +157,21 @@ class Post(db.Model):
         self.delete()
 
 class Comment(Post, db.Model):
-    post = db.ReferenceProperty(Post, collection_name='comments')
-
-class LikeUsers(db.Model):
-    post = db.ReferenceProperty(Post, collection_name='like_users')
-    # user = db.ReferenceProperty(User, collection_name='like_users')
+    post = db.ReferenceProperty(Post, collection_name='blogs')
+    commenter = db.ReferenceProperty(User, collection_name='users')
 
 
+## Likes gets its own database
+def likes_key(group = 'default'):
+    return db.Key.from_path('likes', group)
 
+class Like(db.Model):
+    post = db.ReferenceProperty(Post, collection_name='blogs')
+    liker = db.ReferenceProperty(User, collection_name='users')
+
+    @classmethod
+    def get_by_liker_and_post(cls, liker, post):
+        return Like.all().filter('liker =', liker).filter('post =', post).get()
 
 ####################################################################
 ## HANDLERS
@@ -205,12 +212,6 @@ class BlogHandler(webapp2.RequestHandler):
         uid = self.read_secure_cookie('user_id')
         self.user = uid and User.by_id(int(uid))
 
-# '/' handler
-class MainPage(BlogHandler):
-  def get(self):
-      self.write('Hello, Udacity!')
-
-
 
 class BlogFront(BlogHandler):
     def get(self):
@@ -242,17 +243,36 @@ class LikeHandler(BlogHandler):
         if (not self.user):
             self.redirect("/login")
 
-        # User likes own post
+        # If author likes own post, give an error
         elif post.username == self.user.name:
             post.toggleLikeError()
             self.redirect(self.request.referer)
             post.toggleLikeError()
+
         else:
-            post.incrementLikes()
+            # post.incrementLikes()
+            # make a like object and put it in the db
+            like = Like(parent = likes_key(), post = post_id, user = self.user.name)
+            like.put()
+
             self.redirect(self.request.referer)
+
         if not post:
             self.error(404)
             return
+
+    def done(self):
+        #make sure the user doesn't already exist
+        likes = Like.get_by_liker(self.username)
+        if likes:
+            msg = 'That user already exists.'
+            self.render('signup-form.html', error_username = msg)
+        else:
+            u = User.register(self.username, self.password, self.email)
+            u.put()
+
+            self.login(u)
+            self.redirect('/blog')
 
 class EditHandler(BlogHandler):
     def get(self, post_id):
