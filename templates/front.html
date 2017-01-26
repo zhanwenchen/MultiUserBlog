@@ -2,8 +2,12 @@
 
 {% block content %}
 
-  {% for p in posts %}
-     {{ p.render() | safe }}
+  {% for post in posts %}
+    {% if user %}
+      {{post.render(user.key().id()) | safe}}
+    {% else %}
+      {{ post.render(None) | safe }}
+    {% endif %}
     <br><br>
   {% endfor %}
 

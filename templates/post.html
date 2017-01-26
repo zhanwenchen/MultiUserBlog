@@ -1,7 +1,7 @@
 <div class="post">
   <div class="post-heading">
     <div class="post-title">
-      <a class="blog-link" href="/blog/{{p.key().id()}}">{{p.subject}}</a>
+      <a class="blog-link" href="/{{p.key().id()}}">{{p.subject}}</a>
     </div>
 
     <div class="post-date">
@@ -14,15 +14,16 @@
   </div>
 
   <div class="likes">
-    <form action="/blog/{{p.key().id()}}/like" method="post"><input type="submit" value="{{p.likes}} likes"></form>
+    <!-- <form action="/{{p.key().id()}}/like" method="post"><input type="submit" value="{{p.likes}} likes"></form> -->
+    <form action="/{{p.key().id()}}/like" method="post"><input type="submit" value="{{p.likes}} likes"></form>
   </div>
 
   <div class="edit">
-    <form action="/blog/{{p.key().id()}}/edit" method="get"><input type="submit" value="edit"></form>
+    <form action="/{{p.key().id()}}/edit" method="get"><input type="submit" value="edit"></form>
   </div>
 
   <div class="comment">
-    <form action="/blog/{{p.key().id()}}/comment" method="edit"><input type="submit" value="comment"></form>
+    <form action="/{{p.key().id()}}/comment" method="edit"><input type="submit" value="comment"></form>
   </div>
 
   {% if p.like_error %}
