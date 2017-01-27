@@ -8,7 +8,8 @@ class EditPostHandler(BlogHandler):
         key = db.Key.from_path('Post', int(post_id), parent=blog_key())
         post = db.get(key)
 
-        print(post)
+        if not post:
+            return self.redirect('/')
 
         if self.user and self.user.key().id() == post.user_id:
             self.render('editpost.html', subject=post.subject, content=post.content, post_id=post_id)
@@ -23,6 +24,9 @@ class EditPostHandler(BlogHandler):
         key = db.Key.from_path('Post', int(post_id), parent=blog_key())
         post = db.get(key)
 
+        if not post:
+            return self.redirect('/')
+
         if not self.user:
             return self.redirect('/login')
 
@@ -31,15 +35,14 @@ class EditPostHandler(BlogHandler):
             content = self.request.get('content')
 
             if subject and content:
-                key = db.Key.from_path('Post', int(post_id), parent=blog_key())
-                post = db.get(key)
 
                 post.subject = subject
                 post.content = content
 
                 post.put()
 
-                self.redirect('/%s' % str(post.key().id()))
+                # self.redirect('/%s' % str(post.key().id()))
+                self.redirect(self.request.referer)
             else:
                 error = "subject and content, please!"
                 self.render("newpost.html", subject=subject,

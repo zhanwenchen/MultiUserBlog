@@ -98,6 +98,8 @@ app = WSGIApplication([
     ('/([0-9]+)/edit', EditPostHandler),
     ('/([0-9]+)/delete', DeletePostHandler),
     ('/([0-9]+)/comment', NewCommentHandler),
-    ('/([0-9]+)/([0-9]+)/editcomment/([0-9]+)', EditCommentHandler),
-    ('/([0-9]+)/([0-9]+)/deletecomment/([0-9]+)', DeleteCommentHandler)
+    ('/([0-9]+)/editcomment/([0-9]+)', EditCommentHandler),
+    # ('/([0-9]+)/([0-9]+)/editcomment/([0-9]+)', EditCommentHandler),
+    # ('/([0-9]+)/([0-9]+)/deletecomment/([0-9]+)', DeleteCommentHandler)
+    ('/([0-9]+)/deletecomment/([0-9]+)', DeleteCommentHandler)
 ], debug=True)

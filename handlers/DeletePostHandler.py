@@ -12,6 +12,9 @@ class DeletePostHandler(BlogHandler):
         else:
             self.redirect('/login')
 
+        if not post:
+            return self.redirect('/')
+
         if self.user.key().id() == post.user_id:
             post.delete()
             self.redirect('/')
